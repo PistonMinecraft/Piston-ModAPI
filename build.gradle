@@ -2,8 +2,8 @@ plugins {
     id 'idea'
     id 'java'
     id 'maven-publish'
-    id 'org.checkerframework' version '0.5.19'
-    id 'io.freefair.lombok' version '5.3.0'
+    id 'org.checkerframework' version '+'
+    id 'io.freefair.lombok' version '5.+'
 }
 
 ext {
