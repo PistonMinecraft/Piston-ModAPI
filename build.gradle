@@ -2,27 +2,26 @@ plugins {
     id 'idea'
     id 'java'
     id 'maven-publish'
-    id 'org.checkerframework' version '+'
-    id 'io.freefair.lombok' version '5.+'
 }
 
 ext {
     ENV = System.getenv()
+    MC_VERSION = '1.16.x'
     VERSION = '0.1.0'
-    BUILD = "${ENV.GITHUB_RUN_NUMBER ? (ENV.GITHUB_RUN_NUMBER ?: '0') : 'INTERNAL_BUILD'}"
+    BUILD = "${ENV.GITHUB_RUN_NUMBER ?: 'INTERNAL_BUILD'}"
 }
 
 group = 'org.pistonmc.api'
-archivesBaseName = 'mod-api'
-version = "${VERSION}.${BUILD}"
+base.archivesName = 'mod-api'
+version = "$MC_VERSION-$VERSION${ENV.GITHUB_EVENT_NAME != 'workflow_dispatch' ? '-SNAPSHOT' : ".$BUILD"}"
 
 repositories {
     mavenCentral()
     maven {
-        name 'PistonAPI Common GitHub Registry'
-        url 'https://maven.pkg.github.com/PistonMinecraft/PistonAPI-Common'
+        name 'Piston Plugin API GitHub Registry'
+        url 'https://maven.pkg.github.com/PistonMinecraft/Piston-PluginAPI'
         credentials {
-            username = ENV.GPR_USERNAME
+            username = ENV.GPR_USERNAME ?: ENV.GITHUB_ACTOR
             password = ENV.GPR_TOKEN
         }
     }
@@ -32,65 +31,78 @@ repositories {
     }
 }
 
-configurations {
-    implementation {
-        canBeResolved = true
-    }
+configurations.compileOnly.canBeResolved = true
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(16)
+    withSourcesJar()
+    withJavadocJar()
 }
 
 dependencies {
-    implementation 'org.pistonmc.api:api-common:0.1.0.+'
+    implementation "org.pistonmc.api:plugin-api:$MC_VERSION-$VERSION.+"
 
-    implementation('cpw.mods:modlauncher:8.0.9') {
+    compileOnly libs.bundles.compileonlys
+
+    implementation(libs.bundles.libs) {
         exclude group: 'org.ow2.asm'
+        exclude group: 'org.apache.logging.log4j'
         exclude module: 'jopt-simple'
     }
 
-    annotationProcessor libs.bundles.manifold.processors
-}
+//    implementation(libs.bundles.shared.nontransitive.libs) {
+//        transitive = false
+//    }
 
-jar {
-    manifest.attributes([
-            'Specification-Title': project.name,
-            'Specification-Version': project.version,
-            'Specification-Vendor': 'PistonMC',
-            'Multi-Release': 'true',
-    ])
-    duplicatesStrategy = DuplicatesStrategy.INCLUDE
-    from(configurations.implementation.collect(this::zipTree))
-}
-
-lombok {
-    config['lombok.sneakyThrows.flagUsage'] = 'error'
-    config['lombok.equalsAndHashCode.flagUsage'] = 'error'
+    annotationProcessor libs.bundles.annotations
 }
 
 tasks.withType(JavaCompile) {
     options.encoding 'UTF-8'
-    options.compilerArgs.addAll(['-Xplugin:Manifold'])
+    options.compilerArgs.add '-Xplugin:Manifold'
 }
 
-checkerFramework {
-    excludeTests = true
-    checkers = [
-            'org.checkerframework.checker.nullness.NullnessChecker',
-            'org.checkerframework.common.value.ValueChecker',
-    ]
+tasks.withType(Javadoc) {
+    options.encoding 'UTF-8'
+    options.locale 'en_US' // This doesn't work, don't know why
+    classpath += configurations.annotationProcessor
+    configurations.compileOnly.resolve().each {
+        if(it.name.startsWith('manifold-javadoc-agent')) {
+            options.jFlags("-javaagent:${it.absolutePath}")
+        }
+    }
+}
+
+tasks.withType(Jar) {
+    manifest.attributes([
+            'Specification-Title': project.name,
+            'Specification-Version': project.ext.MC_VERSION,
+            'Specification-Vendor': 'PistonMC',
+            'Implementation-Title': project.name,
+            'Implementation-Version': project.ext.VERSION,
+            'Implementation-Vendor': 'PistonMC',
+    ])
 }
 
 publishing {
     repositories {
         maven {
+            name "${project.name}-GitHub-Registry"
             url "https://maven.pkg.github.com/PistonMinecraft/${project.name}"
             credentials {
-                username = ENV.GPR_USERNAME
+                username = ENV.GPR_USERNAME ?: ENV.GITHUB_ACTOR
                 password = ENV.GPR_TOKEN
             }
         }
+        maven {
+            name 'localrepo'
+            url layout.buildDirectory.dir('localrepo')
+        }
     }
+
     publications {
         maven(MavenPublication) {
-            artifactId = archivesBaseName
+            artifactId = base.archivesName.get()
             from components.java
         }
     }
