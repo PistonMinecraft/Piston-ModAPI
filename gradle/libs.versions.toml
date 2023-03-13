@@ -13,7 +13,7 @@ manifold-props-processor = { module = "systems.manifold:manifold-props", version
 
 modlauncher = "cpw.mods:modlauncher:9.0.7"
 
-jetbrains-annotations = "org.jetbrains:annotations:21.0.1"
+jetbrains-annotations = "org.jetbrains:annotations:24.0.1"
 
 [bundles]
 annotations = ["manifold-processor", "manifold-preprocessor", "manifold-exceptions-processor",
