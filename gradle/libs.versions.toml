@@ -1,5 +1,5 @@
 [versions]
-manifold = "2021.1.14"
+manifold = "2023.1.10"
 
 [libraries]
 manifold-javadoc-agent = { module = "systems.manifold:manifold-javadoc-agent", version.ref = "manifold" }
